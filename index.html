@@ -148,14 +148,28 @@ function loadFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const url = e.target.result;
-    imageBase64 = url.split(',')[1];
-    imageType = file.type;
-    const img = document.getElementById('previewImg');
-    img.src = url; img.style.display = 'block';
-    document.getElementById('uploadPlaceholder').style.display = 'none';
-    document.getElementById('changeBtn').style.display = 'block';
-    document.getElementById('uploadZone').classList.add('has-img');
-    checkReady();
+    const img2 = new Image();
+    img2.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX = 1024;
+      let w = img2.width, h = img2.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = h * MAX / w; w = MAX; }
+        else { w = w * MAX / h; h = MAX; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img2, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.8);
+      imageBase64 = compressed.split(',')[1];
+      imageType = 'image/jpeg';
+      const img = document.getElementById('previewImg');
+      img.src = compressed; img.style.display = 'block';
+      document.getElementById('uploadPlaceholder').style.display = 'none';
+      document.getElementById('changeBtn').style.display = 'block';
+      document.getElementById('uploadZone').classList.add('has-img');
+      checkReady();
+    };
+    img2.src = url;
   };
   reader.readAsDataURL(file);
 }
