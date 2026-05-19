@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>옷BTI — AI 패션 솔직 평가</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0e0e0e;color:#f0ece4;font-family:'Noto Serif KR','Apple SD Gothic Neo',serif;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+  header{text-align:center;padding:48px 24px 32px}
+  .logo{font-size:42px;font-weight:900;letter-spacing:-2px;line-height:1}
+  .logo span{color:#e8453c}
+  .tagline{margin-top:10px;font-size:11px;color:#666;letter-spacing:3px;font-family:monospace;text-transform:uppercase}
+  main{width:100%;max-width:560px;padding:0 20px 80px;display:flex;flex-direction:column;gap:28px}
+  .section-label{font-family:monospace;font-size:11px;letter-spacing:3px;color:#666;text-transform:uppercase;margin-bottom:12px}
+  .upload-zone{border:1.5px dashed #2e2e2e;border-radius:4px;min-height:160px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+  .upload-zone:hover,.upload-zone.drag{border-color:#f0ece4;background:#ffffff08}
+  .upload-zone.has-img{border-style:solid;cursor:default;min-height:auto}
+  .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .upload-placeholder{text-align:center;padding:40px 24px;pointer-events:none}
+  .upload-icon{font-size:36px;margin-bottom:12px;opacity:.5}
+  .upload-label{color:#888;font-size:14px}
+  .upload-sub{font-family:monospace;font-size:10px;color:#444;margin-top:6px;letter-spacing:1px}
+  #previewImg{width:100%;max-height:460px;object-fit:contain;display:none}
+  .change-btn{position:absolute;bottom:10px;right:10px;background:#000000cc;color:#f0ece4;border:1px solid #333;border-radius:3px;padding:6px 12px;font-family:monospace;font-size:11px;cursor:pointer;display:none;z-index:10}
+  .spice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .spice-btn{background:#1a1a1a;border:1.5px solid #2e2e2e;border-radius:4px;padding:16px 8px;cursor:pointer;text-align:center;color:#f0ece4;transition:all .15s;font-family:'Noto Serif KR',serif}
+  .spice-btn.sel-mild{border-color:#7ec8a4;background:rgba(126,200,164,.1)}
+  .spice-btn.sel-medium{border-color:#f5a623;background:rgba(245,166,35,.1)}
+  .spice-btn.sel-hot{border-color:#e8453c;background:rgba(232,69,60,.1)}
+  .spice-emoji{font-size:28px;display:block;margin-bottom:8px}
+  .spice-name{font-size:14px;font-weight:700;display:block}
+  .spice-desc{font-family:monospace;font-size:10px;color:#777;margin-top:4px;display:block}
+  #submitBtn{width:100%;padding:18px;background:#333;color:#666;border:none;border-radius:4px;font-family:'Noto Serif KR',serif;font-size:16px;font-weight:700;cursor:not-allowed;transition:all .2s}
+  #submitBtn.ready{background:#f0ece4;color:#0e0e0e;cursor:pointer}
+  #submitBtn.ready:hover{opacity:.9;transform:translateY(-1px)}
+  #loadingArea{display:none;text-align:center;padding:36px 0}
+  .dots{display:flex;justify-content:center;gap:8px;margin-bottom:18px}
+  .dots span{width:8px;height:8px;background:#f0ece4;border-radius:50%;animation:bounce 1.2s infinite;opacity:.4}
+  .dots span:nth-child(2){animation-delay:.2s}
+  .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-10px);opacity:1}}
+  #loadingText{font-family:monospace;font-size:12px;color:#666;letter-spacing:2px}
+  #errorMsg{display:none;background:rgba(232,69,60,.1);border:1px solid #e8453c;border-radius:4px;padding:14px 18px;font-size:13px;color:#ff8a85;font-family:monospace}
+  #resultArea{display:none;border:1.5px solid #2e2e2e;border-radius:4px;overflow:hidden;animation:fadeUp .4s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  .result-header{background:#1a1a1a;padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #2e2e2e}
+  .avatar{width:36px;height:36px;background:#f0ece4;color:#0e0e0e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:13px;font-weight:700;flex-shrink:0}
+  .result-nick{font-size:14px;font-weight:700}
+  #resultBadge{margin-left:auto;font-family:monospace;font-size:10px;padding:4px 10px;border-radius:2px;letter-spacing:1px}
+  .badge-mild{background:rgba(126,200,164,.1);color:#7ec8a4;border:1px solid #7ec8a4}
+  .badge-medium{background:rgba(245,166,35,.1);color:#f5a623;border:1px solid #f5a623}
+  .badge-hot{background:rgba(232,69,60,.1);color:#e8453c;border:1px solid #e8453c}
+  #resultBody{padding:22px 20px;font-size:15px;line-height:1.9;white-space:pre-wrap}
+  .result-actions{padding:12px 18px;border-top:1px solid #2e2e2e;display:flex;gap:10px}
+  .action-btn{flex:1;padding:10px;background:transparent;border:1px solid #2e2e2e;border-radius:3px;color:#777;font-family:monospace;font-size:11px;cursor:pointer;letter-spacing:1px;transition:all .15s}
+  .action-btn:hover{border-color:#f0ece4;color:#f0ece4}
+  footer{padding:20px;font-family:monospace;font-size:10px;color:#333;text-align:center;letter-spacing:2px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">옷<span>BTI</span></div>
+  <div class="tagline">AI 패션 솔직 평가 · powered by Claude</div>
+</header>
+<main>
+  <div>
+    <div class="section-label">01 — 사진 업로드</div>
+    <div class="upload-zone" id="uploadZone" onclick="zoneClick()" ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+      <input type="file" id="fileInput" accept="image/*" onchange="onFileChange(event)" onclick="event.stopPropagation()">
+      <div class="upload-placeholder" id="uploadPlaceholder">
+        <div class="upload-icon">📸</div>
+        <div class="upload-label">사진을 여기에 올려주세요</div>
+        <div class="upload-sub">JPG · PNG · WEBP</div>
+      </div>
+      <img id="previewImg" alt="미리보기">
+      <button class="change-btn" id="changeBtn" onclick="resetImage(event)">사진 변경</button>
+    </div>
+  </div>
+  <div>
+    <div class="section-label">02 — 평가 강도</div>
+    <div class="spice-grid">
+      <button class="spice-btn" data-level="mild" onclick="selectSpice(this)">
+        <span class="spice-emoji">🥬</span>
+        <span class="spice-name">순한맛</span>
+        <span class="spice-desc">칭찬 위주로</span>
+      </button>
+      <button class="spice-btn" data-level="medium" onclick="selectSpice(this)">
+        <span class="spice-emoji">🌶️</span>
+        <span class="spice-name">중간맛</span>
+        <span class="spice-desc">솔직하게</span>
+      </button>
+      <button class="spice-btn" data-level="hot" onclick="selectSpice(this)">
+        <span class="spice-emoji">🔥</span>
+        <span class="spice-name">매운맛</span>
+        <span class="spice-desc">까임 각오</span>
+      </button>
+    </div>
+  </div>
+  <button id="submitBtn" onclick="runJudge()">평가받기</button>
+  <div id="errorMsg"></div>
+  <div id="loadingArea">
+    <div class="dots"><span></span><span></span><span></span></div>
+    <div id="loadingText">패션 분석 중...</div>
+  </div>
+  <div id="resultArea">
+    <div class="result-header">
+      <div class="avatar">폭</div>
+      <div class="result-nick">패션폭격기</div>
+      <div id="resultBadge"></div>
+    </div>
+    <div id="resultBody"></div>
+    <div class="result-actions">
+      <button class="action-btn" onclick="resetAll()">다시 평가받기</button>
+      <button class="action-btn" id="copyBtn" onclick="copyResult()">결과 복사</button>
+    </div>
+  </div>
+</main>
+<footer>© 옷BTI — 당신의 패션을 솔직하게</footer>
+
+<script>
+let selectedSpice = null, imageBase64 = null, imageType = null, loadingInterval = null;
+
+const LOADING = {
+  mild:   ["따뜻한 시선으로 보는 중...", "좋은 점 찾는 중...", "칭찬 준비 중..."],
+  medium: ["패션 스캔 중...", "솔직한 평가 준비 중...", "코디 분석 중..."],
+  hot:    ["독설 충전 중...", "필터 제거 중...", "까임 준비 완료..."],
+};
+const BADGE = {
+  mild:   { text:"순한맛 🥬", cls:"badge-mild" },
+  medium: { text:"중간맛 🌶️", cls:"badge-medium" },
+  hot:    { text:"매운맛 🔥", cls:"badge-hot" },
+};
+
+function zoneClick() { if (!imageBase64) document.getElementById('fileInput').click(); }
+function onDragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); }
+function onDragLeave() { document.getElementById('uploadZone').classList.remove('drag'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+}
+function onFileChange(e) { loadFile(e.target.files[0]); }
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const url = e.target.result;
+    imageBase64 = url.split(',')[1];
+    imageType = file.type;
+    const img = document.getElementById('previewImg');
+    img.src = url; img.style.display = 'block';
+    document.getElementById('uploadPlaceholder').style.display = 'none';
+    document.getElementById('changeBtn').style.display = 'block';
+    document.getElementById('uploadZone').classList.add('has-img');
+    checkReady();
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetImage(e) {
+  e && e.stopPropagation();
+  imageBase64 = null; imageType = null;
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('previewImg').src = '';
+  document.getElementById('uploadPlaceholder').style.display = '';
+  document.getElementById('changeBtn').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('uploadZone').classList.remove('has-img');
+  checkReady();
+}
+
+function selectSpice(btn) {
+  document.querySelectorAll('.spice-btn').forEach(b => b.className = 'spice-btn');
+  btn.classList.add('sel-' + btn.dataset.level);
+  selectedSpice = btn.dataset.level;
+  checkReady();
+}
+
+function checkReady() {
+  const ok = !!imageBase64 && !!selectedSpice;
+  const btn = document.getElementById('submitBtn');
+  btn.className = ok ? 'ready' : '';
+  btn.disabled = !ok;
+}
+
+async function runJudge() {
+  if (!imageBase64 || !selectedSpice) return;
+  document.getElementById('resultArea').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('submitBtn').disabled = true;
+
+  const loadingArea = document.getElementById('loadingArea');
+  loadingArea.style.display = 'block';
+  const msgs = LOADING[selectedSpice];
+  let mi = 0;
+  const lt = document.getElementById('loadingText');
+  lt.textContent = msgs[0];
+  loadingInterval = setInterval(() => { mi = (mi+1)%msgs.length; lt.textContent = msgs[mi]; }, 1800);
+
+  try {
+    const res = await fetch('/api/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, imageType, spice: selectedSpice })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const badge = BADGE[selectedSpice];
+    const rb = document.getElementById('resultBadge');
+    rb.textContent = badge.text; rb.className = badge.cls;
+    document.getElementById('resultBody').textContent = data.result;
+    document.getElementById('resultArea').style.display = 'block';
+  } catch (err) {
+    const em = document.getElementById('errorMsg');
+    em.textContent = '오류: ' + (err.message || '다시 시도해주세요.');
+    em.style.display = 'block';
+  } finally {
+    clearInterval(loadingInterval);
+    loadingArea.style.display = 'none';
+    checkReady();
+  }
+}
+
+function resetAll() {
+  resetImage();
+  document.querySelectorAll('.spice-btn').forEach(b => b.className = 'spice-btn');
+  selectedSpice = null;
+  document.getElementById('resultArea').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'none';
+  checkReady();
+}
+
+function copyResult() {
+  navigator.clipboard.writeText(document.getElementById('resultBody').textContent).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '복사 완료 ✓';
+    setTimeout(() => btn.textContent = '결과 복사', 2000);
+  });
+}
+</script>
+</body>
+</html>
